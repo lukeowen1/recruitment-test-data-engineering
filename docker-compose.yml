@@ -1,5 +1,3 @@
-version: "3.7"
-
 services:
   database:
     image: mysql:8.0
@@ -14,6 +12,49 @@ services:
     ports:
       - "3306:3306"
     restart: always
+
+  data-ingest: 
+    build:
+        context: ./images/data-ingest
+        dockerfile: Dockerfile
+    depends_on:
+        - database
+    volumes:
+        - ./data:/app/data
+    environment: &common-env
+      # database config
+      DB_HOST: database
+      DB_USER: codetest
+      DB_PASSWORD: swordfish
+      DB_NAME: codetest
+      DB_PORT: 3306
+      # file paths
+      DATA_PATH: /app/data
+      PEOPLE_FILE: people.csv
+      PLACES_FILE: places.csv
+      OUTPUT_FILE: summary_output.json
+      # processing config
+      MAX_DB_RETRIES: 30
+      DB_RETRY_DELAY: 2
+      BATCH_SIZE: 1000
+      # character encoding
+      FILE_ENCODING: utf-8
+    networks:
+      - default
+
+  data-output:
+    build:
+      context: ./images/data-output
+      dockerfile: Dockerfile
+    depends_on:
+      - database
+    volumes:
+      - ./data:/app/data
+    environment:
+      <<: *common-env  # this inherits all the common environment variables
+    networks:
+      - default
+
 
   example-c:
     image: example-c
